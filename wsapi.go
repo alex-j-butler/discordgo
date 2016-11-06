@@ -34,6 +34,10 @@ type resumePacket struct {
 	} `json:"d"`
 }
 
+type helloPacket struct {
+	HeartbeatInterval time.Duration `json:"heartbeat_interval"`
+}
+
 // Open opens a websocket connection to Discord.
 func (s *Session) Open() (err error) {
 
@@ -75,7 +79,7 @@ func (s *Session) Open() (err error) {
 		}
 
 		// Add the version and encoding to the URL
-		s.gateway = fmt.Sprintf("%s?v=4&encoding=json", s.gateway)
+		s.gateway = fmt.Sprintf("%s?v=5&encoding=json", s.gateway)
 	}
 
 	header := http.Header{}
@@ -394,6 +398,30 @@ func (s *Session) onEvent(messageType int, message []byte) {
 			s.log(LogWarning, "error sending gateway identify packet, %s, %s", s.gateway, err)
 			return
 		}
+
+		return
+	}
+
+	// Hello
+	// Read the heartbeat interval and start sending heartbeat packets.
+	if e.Operation == 10 {
+		var hello *helloPacket
+		if err = json.Unmarshal(e.RawData, &hello); err != nil {
+			s.log(LogError, "error decoding websocket message, %s", err)
+			return
+		}
+
+		s.log(LogDebug, "heartbeat interval: %v", hello.HeartbeatInterval)
+
+		// Start the heartbeat to keep the connection alive.
+		go s.heartbeat(s.wsConn, s.listening, hello.HeartbeatInterval)
+
+		return
+	}
+
+	// Heartbeat ACK
+	if e.Operation == 11 {
+		s.log(LogDebug, "received heartbeat ack")
 
 		return
 	}
