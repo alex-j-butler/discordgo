@@ -1163,6 +1163,29 @@ func (s *Session) ChannelMessageSendTTS(channelID string, content string) (st *M
 	return s.channelMessageSend(channelID, content, true)
 }
 
+// ChannelMessageSendEmbed sends a message to the given channel with embedded content.
+// channelID : The ID of a Channel.
+// content   : The message to send.
+// embeds    : The embedded content to send.
+func (s *Session) ChannelMessageSendEmbed(channelID string, content string, embed *MessageEmbed) (st *Message, err error) {
+
+	data := struct {
+		Content string        `json:"content"`
+		TTS     bool          `json:"tts"`
+		Embed   *MessageEmbed `json:"embed"`
+	}{content, false, embed}
+
+	// Send the message to the given channel
+	response, err := s.RequestWithBucketID("POST", EndpointChannelMessages(channelID), data, EndpointChannelMessages(channelID))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	err = unmarshal(response, &st)
+	return
+}
+
 // ChannelMessageEdit edits an existing message, replacing it entirely with
 // the given content.
 // channeld  : The ID of a Channel
